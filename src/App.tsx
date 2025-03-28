@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import Login from "./Login";
 import { API_URL } from "./lib/api";
@@ -7,8 +7,12 @@ import StatusGraph from "./components/StatusGraph";
 import StatusTable from "./components/StatusTable";
 
 interface StatusData {
-  statusTime: number;
+  id: string;
+  manualLocation: boolean;
+  userId: string;
   isPluggedIn: boolean;
+  userLocation: string;
+  statusTime: number;
 }
 
 interface FormattedStatusData {
@@ -16,6 +20,8 @@ interface FormattedStatusData {
   date: string;
   power: number;
   status: string;
+  location: string;
+  manualLocation: boolean;
 }
 
 const App: React.FC = () => {
@@ -31,10 +37,15 @@ const App: React.FC = () => {
 
     const fetchData = async () => {
       try {
+        // Calculate one month ago
+        const endDate = Date.now();
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
+        
         const response = await axios.post(`${API_URL}/charging/get-status`, {
           userId,
-          startDate: 1742975000000, // Example timestamps
-          endDate: Date.now(),
+          startDate: startDate.getTime(), // One month ago
+          endDate: endDate, // Current time
         });
 
         if (response.data) {
@@ -60,12 +71,17 @@ const App: React.FC = () => {
     setUserId("");
   };
 
-  const formattedData: FormattedStatusData[] = data.map((entry) => ({
-    time: new Date(entry.statusTime).toLocaleTimeString(),
-    date: new Date(entry.statusTime).toLocaleDateString(),
-    power: entry.isPluggedIn ? 1 : 0,
-    status: entry.isPluggedIn ? "Connected" : "Disconnected"
-  }));
+  const formattedData: FormattedStatusData[] = useMemo(() => 
+    data.map((entry) => ({
+      time: new Date(entry.statusTime).toLocaleTimeString(),
+      date: new Date(entry.statusTime).toLocaleDateString(),
+      power: entry.isPluggedIn ? 1 : 0,
+      status: entry.isPluggedIn ? "Connected" : "Disconnected",
+      location: entry.userLocation,
+      manualLocation: entry.manualLocation
+    })),
+    [data] // Only recalculate when data changes
+  );
 
   if (!userId) {
     return <Login onLogin={(id) => setUserId(id)} />;
