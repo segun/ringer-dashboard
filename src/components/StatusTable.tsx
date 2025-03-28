@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { calculateDurations, type StatusEntry } from "../utils/timeUtils";
+import MapDialog from "./MapDialog";
 
 interface StatusTableProps {
   data: StatusEntry[];
@@ -10,6 +11,21 @@ const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
   const dataWithDurations = useMemo(() => {
     return calculateDurations(data);
   }, [data]);
+
+  // State for map dialog
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleLocationClick = (location: string | undefined) => {
+    if (location && location !== "Unknown") {
+      setSelectedLocation(location);
+      setIsDialogOpen(true);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+  };
 
   return (
     <div>
@@ -43,7 +59,24 @@ const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
                   {entry.duration}
                 </td>
                 <td style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                  {entry.location || "Unknown"}
+                  {entry.location && entry.location !== "Unknown" ? (
+                    <a 
+                      href="#" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleLocationClick(entry.location);
+                      }}
+                      style={{ 
+                        color: '#0066cc', 
+                        textDecoration: 'underline',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {entry.location}
+                    </a>
+                  ) : (
+                    "Unknown"
+                  )}
                 </td>
                 <td style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
                   {entry.manualLocation ? "Manual" : "Automatic"}
@@ -53,6 +86,13 @@ const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Map Dialog */}
+      <MapDialog
+        isOpen={isDialogOpen} 
+        onClose={handleCloseDialog} 
+        location={selectedLocation || ""} 
+      />
     </div>
   );
 };
