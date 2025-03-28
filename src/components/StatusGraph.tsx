@@ -127,7 +127,7 @@ const StatusGraph: React.FC<StatusGraphProps> = ({ data }) => {
                 return `Duration: ${item.duration}`;
               }
             }}
-            formatter={(value, name, props) => {
+            formatter={(_value, _name, props) => {
               const status = props.payload.status;
               return [status === "Connected" ? "Connected" : "Disconnected", "Status"];
             }}
