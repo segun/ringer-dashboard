@@ -20,7 +20,10 @@ interface FormattedStatusData {
 
 const App: React.FC = () => {
   const [data, setData] = useState<StatusData[]>([]);
-  const [userId, setUserId] = useState<string>("");
+  const [userId, setUserId] = useState<string>(() => {
+    // Initialize userId from localStorage if available
+    return localStorage.getItem('userId') || "";
+  });
   const [showGraph, setShowGraph] = useState<boolean>(false);
 
   useEffect(() => {
@@ -44,6 +47,19 @@ const App: React.FC = () => {
     fetchData();
   }, [userId]);
 
+  // Save userId to localStorage whenever it changes
+  useEffect(() => {
+    if (userId) {
+      localStorage.setItem('userId', userId);
+    } else {
+      localStorage.removeItem('userId');
+    }
+  }, [userId]);
+
+  const handleLogout = () => {
+    setUserId("");
+  };
+
   const formattedData: FormattedStatusData[] = data.map((entry) => ({
     time: new Date(entry.statusTime).toLocaleTimeString(),
     date: new Date(entry.statusTime).toLocaleDateString(),
@@ -57,7 +73,7 @@ const App: React.FC = () => {
 
   return (
     <div style={{ width: "90%", margin: "auto", padding: "20px" }}>
-      <DashboardHeader userId={userId} />
+      <DashboardHeader userId={userId} onLogout={handleLogout} />
       
       <div style={{ marginBottom: "20px", textAlign: "right" }}>
         <button 
