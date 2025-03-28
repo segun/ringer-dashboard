@@ -9,7 +9,8 @@ interface StatusTableProps {
 const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
   // Calculate durations between status changes using the utility function
   const dataWithDurations = useMemo(() => {
-    return calculateDurations(data);
+    // Pass current time to use for the last entry's duration calculation
+    return calculateDurations(data, new Date());
   }, [data]);
 
   // State for map dialog

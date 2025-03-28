@@ -15,12 +15,50 @@ export interface StatusEntryWithDuration extends StatusEntry {
 /**
  * Calculate durations between status entries.
  * For each entry, the duration represents the time until the next entry.
+ * If currentTime is provided, it will be used to calculate the duration
+ * for the last entry instead of showing "N/A".
  */
-export const calculateDurations = (data: StatusEntry[]): StatusEntryWithDuration[] => {
+export const calculateDurations = (data: StatusEntry[], currentTime?: Date): StatusEntryWithDuration[] => {
   return data.map((entry, index) => {
-    // For the last entry, we don't have a next entry to compare with
+    // For the last entry, use currentTime if provided
     if (index === data.length - 1) {
-      return { ...entry, duration: "N/A" };
+      if (!currentTime) {
+        return { ...entry, duration: "N/A" };
+      }
+      
+      try {
+        // Convert last entry time to Date
+        const [day, month, year] = entry.date.split('/');
+        const [hour, minute, second] = entry.time.split(':');
+        
+        // Create Date object with explicit parameters
+        const entryDateTime = new Date(
+          parseInt(year), parseInt(month) - 1, parseInt(day), 
+          parseInt(hour), parseInt(minute), parseInt(second || '0')
+        );
+        
+        if (isNaN(entryDateTime.getTime())) {
+          return { ...entry, duration: "Invalid date" };
+        }
+        
+        const diffMs = currentTime.getTime() - entryDateTime.getTime();
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        let duration = "";
+        if (diffHours > 0) {
+          duration += `${diffHours}h `;
+        }
+        duration += `${diffMinutes}m`;
+        
+        // Also include the raw duration in minutes for sorting/graphing
+        const durationMinutes = diffHours * 60 + diffMinutes;
+
+        return { ...entry, duration, durationMinutes };
+      } catch (error) {
+        console.error("Error calculating duration for last entry:", error);
+        return { ...entry, duration: "Error" };
+      }
     }
 
     try {
