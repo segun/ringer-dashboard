@@ -1,6 +1,7 @@
 export interface StatusEntry {
   time: string;
   date: string;
+  timestamp?: number; // Add the original timestamp
   power: number;
   status: string;
   location?: string;
@@ -10,6 +11,16 @@ export interface StatusEntry {
 export interface StatusEntryWithDuration extends StatusEntry {
   duration: string;
   durationMinutes?: number;
+}
+
+/**
+ * Safely get a timestamp from either the timestamp property or parsed from date/time strings
+ */
+function getEntryTimestamp(entry: StatusEntry): number {
+  if (entry.timestamp !== undefined) {
+    return entry.timestamp;
+  }
+  return parseDate(entry.date, entry.time).getTime();
 }
 
 /**
@@ -27,21 +38,20 @@ export const calculateDurations = (data: StatusEntry[], currentTime?: Date): Sta
       }
       
       try {
-        // Convert last entry time to Date
-        const [day, month, year] = entry.date.split('/');
-        const [hour, minute, second] = entry.time.split(':');
+        // Get timestamp using our safe helper function
+        const entryTime = getEntryTimestamp(entry);
         
-        // Create Date object with explicit parameters
-        const entryDateTime = new Date(
-          parseInt(year), parseInt(month) - 1, parseInt(day), 
-          parseInt(hour), parseInt(minute), parseInt(second || '0')
-        );
-        
-        if (isNaN(entryDateTime.getTime())) {
+        if (isNaN(entryTime)) {
           return { ...entry, duration: "Invalid date" };
         }
         
-        const diffMs = currentTime.getTime() - entryDateTime.getTime();
+        const diffMs = currentTime.getTime() - entryTime;
+        
+        // Ensure we don't show negative durations
+        if (diffMs < 0) {
+          return { ...entry, duration: "0m", durationMinutes: 0 };
+        }
+        
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
         const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         
@@ -62,30 +72,21 @@ export const calculateDurations = (data: StatusEntry[], currentTime?: Date): Sta
     }
 
     try {
-      // Current entry time
-      const [day, month, year] = entry.date.split('/');
-      const [hour, minute, second] = entry.time.split(':');
+      // Get timestamps using our safe helper function
+      const currentTime = getEntryTimestamp(entry);
+      const nextTime = getEntryTimestamp(data[index + 1]);
       
-      // Next entry time
-      const [nextDay, nextMonth, nextYear] = data[index + 1].date.split('/');
-      const [nextHour, nextMinute, nextSecond] = data[index + 1].time.split(':');
-      
-      // Create Date objects with explicit parameters to avoid parsing issues
-      const currentDateTime = new Date(
-        parseInt(year), parseInt(month) - 1, parseInt(day), 
-        parseInt(hour), parseInt(minute), parseInt(second || '0')
-      );
-      
-      const nextDateTime = new Date(
-        parseInt(nextYear), parseInt(nextMonth) - 1, parseInt(nextDay), 
-        parseInt(nextHour), parseInt(nextMinute), parseInt(nextSecond || '0')
-      );
-      
-      if (isNaN(currentDateTime.getTime()) || isNaN(nextDateTime.getTime())) {
+      if (isNaN(currentTime) || isNaN(nextTime)) {
         return { ...entry, duration: "Invalid date" };
       }
       
-      const diffMs = nextDateTime.getTime() - currentDateTime.getTime();
+      const diffMs = nextTime - currentTime;
+      
+      // Ensure we don't show negative durations
+      if (diffMs < 0) {
+        return { ...entry, duration: "0m", durationMinutes: 0 };
+      }
+      
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
       const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
       
@@ -105,3 +106,22 @@ export const calculateDurations = (data: StatusEntry[], currentTime?: Date): Sta
     }
   });
 };
+
+/**
+ * Parse date and time strings into a Date object
+ * This is a fallback for when timestamps aren't available
+ */
+function parseDate(dateStr: string, timeStr: string): Date {
+  try {
+    // Extract components
+    const [day, month, year] = dateStr.split('/').map(n => parseInt(n, 10));
+    const [hour, minute, secondStr] = timeStr.split(':');
+    const second = secondStr ? parseInt(secondStr, 10) : 0;
+    
+    // Create date using UTC to avoid timezone issues
+    return new Date(Date.UTC(year, month - 1, day, parseInt(hour, 10), parseInt(minute, 10), second));
+  } catch (e) {
+    console.error("Error parsing date:", e);
+    return new Date(NaN); // Invalid date
+  }
+}

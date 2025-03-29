@@ -18,6 +18,7 @@ interface StatusData {
 interface FormattedStatusData {
   time: string;
   date: string;
+  timestamp: number;
   power: number;
   status: string;
   location: string;
@@ -92,14 +93,36 @@ const App: React.FC = () => {
   };
 
   const formattedData: FormattedStatusData[] = useMemo(() => 
-    data.map((entry) => ({
-      time: new Date(entry.statusTime).toLocaleTimeString(),
-      date: new Date(entry.statusTime).toLocaleDateString(),
-      power: entry.isPluggedIn ? 1 : 0,
-      status: entry.isPluggedIn ? "Connected" : "Disconnected",
-      location: entry.userLocation,
-      manualLocation: entry.manualLocation
-    })),
+    data.map((entry) => {
+      // Create date object directly from timestamp
+      const date = new Date(entry.statusTime);
+      
+      // Format time using explicit parameters for consistency
+      const time = date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false // Use 24-hour format for consistency
+      });
+      
+      // Format date using explicit parameters for consistency
+      const formattedDate = date.toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).replace(/(\d+)\/(\d+)\/(\d+)/, '$2/$1/$3'); // Convert MM/DD/YYYY to DD/MM/YYYY
+      
+      // Include the original timestamp for accurate duration calculations
+      return {
+        time,
+        date: formattedDate,
+        timestamp: entry.statusTime, // Add the timestamp to pass to StatusTable
+        power: entry.isPluggedIn ? 1 : 0,
+        status: entry.isPluggedIn ? "Connected" : "Disconnected",
+        location: entry.userLocation,
+        manualLocation: entry.manualLocation
+      };
+    }),
     [data] // Only recalculate when data changes
   );
 
