@@ -56,6 +56,81 @@ const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
     hour12: true
   });
 
+  // Helper function to calculate end time from start time and duration
+  const calculateEndTime = (dateStr: string, timeStr: string, durationStr: string): string => {
+    if (durationStr === "Current" || !dateStr || !timeStr) return "Current";
+    
+    try {
+      // Parse the start date and time
+      const [month, day, year] = dateStr.split('/').map(part => parseInt(part.trim(), 10));
+      
+      // Handle time parsing more safely
+      let hours = 0;
+      let minutes = 0;
+      let seconds = 0;
+      let isPM = false;
+      
+      // Check if time contains AM/PM
+      if (timeStr.toUpperCase().includes('AM') || timeStr.toUpperCase().includes('PM')) {
+        isPM = timeStr.toUpperCase().includes('PM');
+        const timeParts = timeStr.replace(/\s*(AM|PM)\s*/i, '').split(':');
+        
+        hours = parseInt(timeParts[0] || '0', 10);
+        minutes = parseInt(timeParts[1] || '0', 10);
+        seconds = parseInt(timeParts[2] || '0', 10);
+        
+        // Convert 12-hour format to 24-hour
+        if (isPM && hours < 12) {
+          hours += 12;
+        } else if (!isPM && hours === 12) {
+          hours = 0;
+        }
+      } else {
+        // Handle 24-hour format
+        const timeParts = timeStr.split(':');
+        hours = parseInt(timeParts[0] || '0', 10);
+        minutes = parseInt(timeParts[1] || '0', 10);
+        seconds = parseInt(timeParts[2] || '0', 10);
+      }
+      
+      // Create a date object for the start time
+      const startDateTime = new Date(year, month - 1, day);
+      startDateTime.setHours(hours, minutes, seconds);
+      
+      // Parse the duration (assuming format like "2h 15m 30s" or some parts of it)
+      const durationParts = durationStr.match(/(\d+)h|(\d+)m|(\d+)s/g) || [];
+      let durationMs = 0;
+      
+      durationParts.forEach(part => {
+        const num = parseInt(part, 10);
+        if (part.endsWith('h')) {
+          durationMs += num * 60 * 60 * 1000;
+        } else if (part.endsWith('m')) {
+          durationMs += num * 60 * 1000;
+        } else if (part.endsWith('s')) {
+          durationMs += num * 1000;
+        }
+      });
+      
+      // Calculate end time
+      const endDateTime = new Date(startDateTime.getTime() + durationMs);
+      
+      // Format the end time
+      return endDateTime.toLocaleString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      console.error("Error calculating end time:", error, { dateStr, timeStr, durationStr });
+      return "Error";
+    }
+  };
+
   return (
     <div>
       <div style={{ 
@@ -96,8 +171,8 @@ const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ backgroundColor: "#f2f2f2" }}>
-              <th style={{ padding: "12px", textAlign: "left", border: "1px solid #ddd" }}>Date</th>
-              <th style={{ padding: "12px", textAlign: "left", border: "1px solid #ddd" }}>Time</th>
+              <th style={{ padding: "12px", textAlign: "left", border: "1px solid #ddd" }}>Start Time</th>
+              <th style={{ padding: "12px", textAlign: "left", border: "1px solid #ddd" }}>End Time</th>
               <th style={{ padding: "12px", textAlign: "left", border: "1px solid #ddd" }}>Status</th>
               <th style={{ padding: "12px", textAlign: "left", border: "1px solid #ddd" }}>Duration</th>
               <th style={{ padding: "12px", textAlign: "left", border: "1px solid #ddd" }}>Location</th>
@@ -108,10 +183,10 @@ const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
             {dataWithDurations.map((entry, index) => (
               <tr key={index} style={{ backgroundColor: index % 2 === 0 ? "white" : "#f9f9f9" }}>
                 <td style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                  {entry.date}
+                  {`${entry.date} ${entry.time}`}
                 </td>
                 <td style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>
-                  {entry.time}
+                  {calculateEndTime(entry.date, entry.time, entry.duration)}
                 </td>
                 <td style={{ 
                   padding: "8px", 
