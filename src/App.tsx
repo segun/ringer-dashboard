@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import axios from "axios";
 import Login from "./Login";
 import { API_URL } from "./lib/api";
@@ -35,9 +35,9 @@ const App: React.FC = () => {
 
   // Add state for date range
   const [startDate, setStartDate] = useState<string>(() => {
-    // Default to one month ago
+    // Default to one week ago
     const date = new Date();
-    date.setMonth(date.getMonth() - 1);
+    date.setDate(date.getDate() - 7);
     return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
   });
 
@@ -47,23 +47,9 @@ const App: React.FC = () => {
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (!userId) return; // Do not fetch unless logged in
-
-    fetchData();
-  }, [userId]); // Only run when userId changes
-
-  // Save userId to localStorage whenever it changes
-  useEffect(() => {
-    if (userId) {
-      localStorage.setItem('userId', userId);
-    } else {
-      localStorage.removeItem('userId');
-    }
-  }, [userId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!userId) return;
 
     setIsLoading(true);
@@ -86,7 +72,39 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId, startDate, endDate]);
+
+  useEffect(() => {
+    if (!userId) return; // Do not fetch unless logged in
+
+    fetchData();
+  }, [userId, fetchData]); // Add fetchData to dependency array
+
+  // Add auto-refresh functionality
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    if (autoRefresh && userId) {
+      intervalId = setInterval(() => {
+        fetchData();
+      }, 30000); // 30 seconds
+    }
+    
+    // Cleanup function to clear the interval when component unmounts
+    // or when autoRefresh or userId changes
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [autoRefresh, userId, fetchData]); // Add fetchData to dependency array
+
+  // Save userId to localStorage whenever it changes
+  useEffect(() => {
+    if (userId) {
+      localStorage.setItem('userId', userId);
+    } else {
+      localStorage.removeItem('userId');
+    }
+  }, [userId]);
 
   const handleLogout = () => {
     setUserId("");
@@ -184,6 +202,20 @@ const App: React.FC = () => {
             }}
           >
             {isLoading ? "Loading..." : "Refresh Data"}
+          </button>
+          
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: autoRefresh ? "#FF5722" : "#9E9E9E",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer"
+            }}
+          >
+            {autoRefresh ? "Auto-Refresh: ON" : "Auto-Refresh: OFF"}
           </button>
         </div>
         
