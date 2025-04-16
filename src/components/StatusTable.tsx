@@ -62,17 +62,16 @@ const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
     
     try {
       // Parse the start date and time
-      const [month, day, year] = dateStr.split('/').map(part => parseInt(part.trim(), 10));
+      const [day, month, year] = dateStr.split('/').map(part => parseInt(part.trim(), 10));
       
       // Handle time parsing more safely
       let hours = 0;
       let minutes = 0;
       let seconds = 0;
-      let isPM = false;
       
       // Check if time contains AM/PM
       if (timeStr.toUpperCase().includes('AM') || timeStr.toUpperCase().includes('PM')) {
-        isPM = timeStr.toUpperCase().includes('PM');
+        const isPM = timeStr.toUpperCase().includes('PM');
         const timeParts = timeStr.replace(/\s*(AM|PM)\s*/i, '').split(':');
         
         hours = parseInt(timeParts[0] || '0', 10);
@@ -93,7 +92,7 @@ const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
         seconds = parseInt(timeParts[2] || '0', 10);
       }
       
-      // Create a date object for the start time
+      // Create a date object for the start time - note the correct order: month is zero-based
       const startDateTime = new Date(year, month - 1, day);
       startDateTime.setHours(hours, minutes, seconds);
       
@@ -115,16 +114,13 @@ const StatusTable: React.FC<StatusTableProps> = ({ data }) => {
       // Calculate end time
       const endDateTime = new Date(startDateTime.getTime() + durationMs);
       
-      // Format the end time
-      return endDateTime.toLocaleString('en-US', {
-        month: 'numeric',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
+      // Format the end time in DD/MM/YYYY HH:MM:SS format to match start time format
+      return `${endDateTime.getDate().toString().padStart(2, '0')}/${
+        (endDateTime.getMonth() + 1).toString().padStart(2, '0')}/${
+        endDateTime.getFullYear()} ${
+        endDateTime.getHours().toString().padStart(2, '0')}:${
+        endDateTime.getMinutes().toString().padStart(2, '0')}:${
+        endDateTime.getSeconds().toString().padStart(2, '0')}`;
     } catch (error) {
       console.error("Error calculating end time:", error, { dateStr, timeStr, durationStr });
       return "Error";
